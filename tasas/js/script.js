@@ -21,8 +21,8 @@ const CONFIG = {
   storageKeys: {
     theme: 'tasas-theme',
     favorites: 'tasas-favorites-v1',
-    cache: 'tasas-cache-official-v1',
-    previous: 'tasas-previous-official-v1'
+    cache: 'tasas-cache-official-v2',
+    previous: 'tasas-previous-official-v2'
   }
 };
 
@@ -362,10 +362,27 @@ function fmtRate(value) {
 }
 
 function fmtSourceQuote(value) {
-  const match = String(value == null ? '' : value).trim().match(/^([+-]?)(\d+)(?:\.(\d+))?$/);
+  const text = String(value == null ? '' : value).trim();
+  const localized = text.match(/^([+-]?)(\d+(?:\.\d{3})*),(\d+)$/);
+  if (localized) {
+    const digits = localized[2].replace(/\./g, '');
+    const integer = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return localized[1] + integer + ',' + localized[3];
+  }
+
+  const match = text.match(/^([+-]?)(\d+)(?:\.(\d+))?$/);
   if (!match) return fmtRate(value);
   const integer = match[2].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return match[1] + integer + (match[3] ? ',' + match[3] : '');
+}
+
+function parseSourceQuoteValue(code, value) {
+  const text = String(value == null ? '' : value).trim();
+  if (code === 'VES') {
+    if (!/^\d+(?:\.\d{3})*,\d+$/.test(text)) return NaN;
+    return Number(text.replace(/\./g, '').replace(',', '.'));
+  }
+  return Number(text);
 }
 
 function fmtPct(value) {
@@ -515,7 +532,7 @@ function normalize(payload, mode) {
     const source = sources[code];
     if (isFinite(value) && value > 0 &&
         quote && (quote.base === 'USD' || quote.base === 'EUR') &&
-        Number(quote.value) > 0 && parseDateValue(quote.date) &&
+        parseSourceQuoteValue(code, quote.value) > 0 && parseDateValue(quote.date) &&
         source && source.name && source.url) {
       rates[code] = value;
     }

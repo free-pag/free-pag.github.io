@@ -4,7 +4,7 @@
    Las tasas NO se cachean aquí: siempre se piden frescas al Web App.
    ========================================================================== */
 
-const CACHE_NAME = 'tasas-global-official-v1';
+const CACHE_NAME = 'tasas-global-official-v2';
 const CACHE_PREFIX = 'tasas-global-';
 
 const SHELL = [
