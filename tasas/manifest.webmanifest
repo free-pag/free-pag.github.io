@@ -1,0 +1,28 @@
+{
+  "name": "Tasas Global · Dólar y Euro",
+  "short_name": "Tasas Global",
+  "description": "Tasas del dólar y el euro en casi 150 monedas, con mercado en vivo y tasas oficiales por país.",
+  "lang": "es",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#060a13",
+  "theme_color": "#060a13",
+  "categories": ["finance", "utilities"],
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
