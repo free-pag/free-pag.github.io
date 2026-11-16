@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#060a13">
+  <meta name="description" content="Tasas de cambio del dólar y el euro para todos los países: pesos, bolívares, soles y casi 150 monedas. Mercado en vivo y tasas oficiales del país (TRM, FIX, PTAX).">
+  <meta name="color-scheme" content="dark light">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tasas Global">
+  <title>Tasas Global · Dólar y Euro en tiempo real</title>
+
+  <script>
+    /* Tema antes del primer pintado (evita el destello blanco). */
+    try {
+      var savedTheme = localStorage.getItem('tasas-theme');
+      document.documentElement.dataset.theme = savedTheme ||
+        (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+</head>
+
+<body>
+  <a class="skip-link" href="#grid">Saltar a las tasas</a>
+
+  <div class="orbs" aria-hidden="true">
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+    <span class="orb orb-3"></span>
+  </div>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="./" aria-label="Tasas Global, inicio">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M3.2 12h17.6"></path>
+            <path d="M12 3c2.7 2.6 2.7 15.4 0 18M12 3c-2.7 2.6-2.7 15.4 0 18"></path>
+          </svg>
+        </span>
+        <span class="brand-text">
+          <strong>Tasas Global</strong>
+          <small>Dólar y euro · mercado de divisas</small>
+        </span>
+      </a>
+
+      <div class="topbar-actions">
+        <div class="status" id="status" data-state="loading" role="status" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="statusText">Conectando…</span>
+        </div>
+
+        <button class="icon-btn" id="refreshBtn" type="button" aria-label="Actualizar tasas ahora" title="Actualizar tasas ahora">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"></path>
+            <path d="M20.5 4.2v5.2h-5.2"></path>
+          </svg>
+        </button>
+
+        <button class="icon-btn" id="themeBtn" type="button" aria-label="Cambiar tema" title="Cambiar tema">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2.5v2M12 19.5v2M4.3 4.3l1.4 1.4M18.3 18.3l1.4 1.4M2.5 12h2M19.5 12h2M4.3 19.7l1.4-1.4M18.3 5.7l1.4-1.4"></path>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <path d="M20.5 14.2A8.6 8.6 0 0 1 9.8 3.5a8.6 8.6 0 1 0 10.7 10.7Z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- ================= HERO ================= -->
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow"><span class="live-dot" aria-hidden="true"></span> Mercado de divisas global</span>
+        <h1>El dólar y el euro,<br><span class="grad">país por país.</span></h1>
+        <p class="lede">
+          Tasas de <strong id="currencyCount">149</strong> monedas del mundo: pesos, bolívares,
+          soles, reales y más. Mercado en vivo y, donde existe, la tasa oficial del país
+          (TRM, FIX, PTAX, Observado).
+        </p>
+
+        <div class="hero-meta">
+          <span class="pill" title="Hora de la última actualización">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="8.5"></circle>
+              <path d="M12 7.5V12l3 1.8"></path>
+            </svg>
+            <span id="updatedText">—</span>
+          </span>
+          <span class="pill" title="Proveedor de las tasas">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <ellipse cx="12" cy="6" rx="7.5" ry="3"></ellipse>
+              <path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"></path>
+              <path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"></path>
+            </svg>
+            <a id="providerLink" href="https://www.exchangerate-api.com" target="_blank" rel="noopener">exchangerate-api</a>
+          </span>
+          <span class="pill" title="Próxima actualización del proveedor">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <path d="M12 3v3M12 18v3M3 12h3M18 12h3"></path>
+              <circle cx="12" cy="12" r="4.2"></circle>
+            </svg>
+            Próxima: <span id="nextText">—</span>
+          </span>
+          <span class="pill pill-mode" id="modePill" hidden></span>
+        </div>
+
+        <p class="manual-note" id="manualNote" hidden></p>
+      </div>
+
+      <!-- ================= CONVERSOR ================= -->
+      <aside class="converter" aria-label="Conversor de monedas">
+        <div class="converter-head">
+          <div>
+            <h2>Conversor</h2>
+            <p>Calcula al instante con la tasa actual</p>
+          </div>
+          <span class="converter-badge">en vivo</span>
+        </div>
+
+        <label class="field">
+          <span class="field-label">Monto</span>
+          <input id="calcAmount" class="amount-input" type="text" inputmode="decimal" value="100" autocomplete="off" spellcheck="false" aria-label="Monto a convertir">
+        </label>
+
+        <div class="conv-row">
+          <label class="field select-field">
+            <span class="field-label">De</span>
+            <select id="calcFrom" aria-label="Moneda de origen"></select>
+          </label>
+
+          <button class="swap-btn" id="calcSwap" type="button" aria-label="Intercambiar monedas" title="Intercambiar monedas">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M7 4 4 7l3 3"></path>
+              <path d="M4 7h11a4 4 0 0 1 4 4"></path>
+              <path d="m17 20 3-3-3-3"></path>
+              <path d="M20 17H9a4 4 0 0 1-4-4"></path>
+            </svg>
+          </button>
+
+          <label class="field select-field">
+            <span class="field-label">A</span>
+            <select id="calcTo" aria-label="Moneda de destino"></select>
+          </label>
+        </div>
+
+        <div class="conv-result">
+          <span class="conv-result-value" id="calcOut">—</span>
+          <span class="conv-result-code" id="calcOutCode">EUR</span>
+          <small id="calcHint">Cargando tasas…</small>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ================= BUSCADOR ================= -->
+    <section class="toolbar" aria-label="Filtros y búsqueda">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5"></circle>
+          <path d="m16 16 4.5 4.5"></path>
+        </svg>
+        <input id="search" type="search" placeholder="Buscar país o moneda: dólar, euro, yen…" autocomplete="off" aria-label="Buscar país o moneda">
+        <button class="search-clear" id="clearSearch" type="button" aria-label="Limpiar búsqueda" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18"></path>
+          </svg>
+        </button>
+      </div>
+
+      <label class="sort-field">
+        <span class="sr-only">Ordenar por</span>
+        <select id="sortSel">
+          <option value="az">País (A-Z)</option>
+          <option value="region">Región</option>
+          <option value="rate-desc">Mayor tasa (USD)</option>
+          <option value="rate-asc">Menor tasa (USD)</option>
+        </select>
+      </label>
+    </section>
+
+    <nav class="chips" id="chips" aria-label="Filtrar por región"></nav>
+
+    <div class="summary">
+      <span id="countLabel">Cargando monedas…</span>
+      <span class="legend"><i class="rate-local" aria-hidden="true"></i> Precio local oficial · chips TRM/FIX/PTAX = tasa oficial</span>
+      <span class="summary-note" id="sourceNote">Conectando con Google Sheets…</span>
+    </div>
+
+    <!-- ================= TARJETAS ================= -->
+    <section class="grid" id="grid" aria-live="polite" aria-busy="true"></section>
+
+    <div class="empty" id="empty" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="6.5"></circle>
+        <path d="m16 16 4.5 4.5M8.5 11h5"></path>
+      </svg>
+      <p>No encontramos monedas con ese filtro.</p>
+      <button class="btn ghost" id="emptyReset" type="button">Limpiar filtros</button>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <div class="footer-brand">
+        <span class="brand-mark sm" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M3.2 12h17.6"></path>
+            <path d="M12 3c2.7 2.6 2.7 15.4 0 18M12 3c-2.7 2.6-2.7 15.4 0 18"></path>
+          </svg>
+        </span>
+        <div>
+          <strong>Tasas Global</strong>
+          <p>Tasas de referencia del mercado de divisas.</p>
+        </div>
+      </div>
+
+      <div class="footer-links">
+        <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">exchangerate-api.com</a>
+        <a href="https://dolarapi.com" target="_blank" rel="noopener">dolarapi.com</a>
+        <a href="https://ve.dolarapi.com" target="_blank" rel="noopener">ve.dolarapi.com</a>
+      </div>
+    </div>
+
+    <div class="wrap footer-note">
+      <p>
+        Los valores son informativos y pueden variar según el mercado. No constituyen asesoría financiera
+        ni una oferta de compra o venta.
+      </p>
+      <p>© <span id="year"></span> Tasas Global · Mercado en vivo y tasas oficiales por país</p>
+    </div>
+  </footer>
+
+  <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- ================= DETALLE / HISTORIAL ================= -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+      <button class="modal-close" type="button" data-close aria-label="Cerrar detalle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M6 6l12 12M18 6 6 18"></path>
+        </svg>
+      </button>
+
+      <div class="modal-head">
+        <span class="flag-wrap lg" id="mFlagWrap">
+          <span class="flag-fallback" id="mFlagFallback">—</span>
+          <img id="mFlag" alt="" width="56" height="42" hidden>
+        </span>
+        <div class="modal-titles">
+          <h2 id="mTitle">—</h2>
+          <p id="mSub">—</p>
+        </div>
+      </div>
+
+      <div class="modal-prices">
+        <div class="m-price">
+          <span>1 USD</span>
+          <strong id="mUsd">—</strong>
+        </div>
+        <div class="m-price">
+          <span>1 EUR</span>
+          <strong id="mEur">—</strong>
+        </div>
+      </div>
+
+      <div class="modal-extras" id="mExtras" hidden></div>
+
+      <div class="chart-head">
+        <div>
+          <h3>Historial</h3>
+          <p>Historial de la tasa de mercado (requiere backend)</p>
+        </div>
+        <div class="periods" id="periods" role="group" aria-label="Periodo del historial">
+          <button type="button" data-days="1">24 h</button>
+          <button type="button" data-days="7">7 d</button>
+          <button type="button" data-days="30" class="active">30 d</button>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <canvas id="chart" height="180" aria-label="Gráfico del historial"></canvas>
+        <div class="chart-empty" id="chartEmpty" hidden></div>
+      </div>
+
+      <div class="modal-foot">
+        <span id="mSource">—</span>
+        <button class="btn ghost" id="mCopy" type="button">Copiar tasa</button>
+      </div>
+    </div>
+  </div>
+
+  <noscript>
+    <div class="noscript">Activa JavaScript para ver las tasas de cambio.</div>
+  </noscript>
+
+  <script src="js/script.js" defer></script>
+</body>
+</html>
