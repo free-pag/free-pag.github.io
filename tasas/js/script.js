@@ -3,10 +3,8 @@
 /* ============================================================================
    TASAS GLOBAL · script.js
    ----------------------------------------------------------------------------
-   Página: índice del dólar y el euro por país.
-   Datos:  Google Apps Script (Web App) + Google Sheets.
-   Respaldo: si el Web App no responde, se consultan las APIs públicas
-             directamente para que la página nunca se quede vacía.
+   Página: referencias oficiales del dólar y el euro.
+   Datos: Google Apps Script + feeds directos de autoridades monetarias.
 
    👉 CONFIGURA AQUÍ TU WEB APP DE APPS SCRIPT:
    ========================================================================== */
@@ -15,47 +13,7 @@ const CONFIG = {
   // URL de implementación del Web App de Apps Script (termina en /exec)
   appsScriptUrl: 'https://script.google.com/macros/s/AKfycbxPjQ06f6JkIggVWiA0f9Q7I2H_agdvAcPOm0HE3hQY77KIv06GZBugAmZO_YkjWEcA/exec',
 
-  // API de respaldo (sin clave)
-  directApi: 'https://open.er-api.com/v6/latest/USD',
-  // Mercado en vivo (sin clave, CORS abierto). Es la que más se acerca a Google.
-  liveApi: 'https://api.fxratesapi.com/latest?base=USD',
-  // Respaldo diario con 160+ monedas (sin clave, CORS abierto).
-  dailyApi: 'https://latest.currency-api.pages.dev/v1/currencies/usd.json',
-
-  /**
-   * Cotizaciones locales y fuentes oficiales por país.
-   * - mode 'replace': la tasa local OFICIAL es el precio principal
-   *   (Venezuela, Argentina y Bolivia, que tienen control de cambio).
-   * - mode 'reference': el precio principal es el mercado en vivo y la
-   *   tasa oficial se muestra como chip informativo (TRM, FIX, PTAX…).
-   */
-  localApis: [
-    { code: 'VES', type: 'dolares', mode: 'replace', url: 'https://ve.dolarapi.com/v1/dolares',
-      source: 'BCV', sourceUrl: 'https://www.bcv.org.ve/' },
-    { code: 'ARS', type: 'dolares', mode: 'replace', url: 'https://dolarapi.com/v1/dolares',
-      source: 'BCRA', sourceUrl: 'https://www.bcra.gob.ar/' },
-    { code: 'BOB', type: 'dolares', mode: 'replace', url: 'https://bo.dolarapi.com/v1/dolares',
-      source: 'BCB', sourceUrl: 'https://www.bcb.gob.bo/' },
-    { code: 'CLP', type: 'mindicador', mode: 'reference', label: 'Observado',
-      url: 'https://mindicador.cl/api/dolar',
-      source: 'Banco Central de Chile', sourceUrl: 'https://www.bcentral.cl/' },
-    { code: 'COP', type: 'datos', mode: 'reference', label: 'TRM',
-      url: 'https://www.datos.gov.co/resource/ceyp-9c7c.json?$limit=1&$order=vigenciadesde%20DESC',
-      source: 'Superfinanciera', sourceUrl: 'https://www.superfinanciera.gov.co/' },
-    { code: 'MXN', type: 'cotizaciones', field: 'fix', mode: 'reference', label: 'FIX',
-      url: 'https://mx.dolarapi.com/v1/cotizaciones',
-      source: 'Banxico', sourceUrl: 'https://www.banxico.org.mx/' },
-    { code: 'BRL', type: 'cotacoes', mode: 'reference', label: 'PTAX',
-      url: 'https://br.dolarapi.com/v1/cotacoes',
-      source: 'BCB', sourceUrl: 'https://www.bcb.gov.br/' },
-    { code: 'UYU', type: 'cotizaciones', mode: 'reference', label: 'BROU',
-      url: 'https://uy.dolarapi.com/v1/cotizaciones',
-      source: 'BROU', sourceUrl: 'https://www.brou.com.uy/' }
-  ],
-  localMaxAgeMs: 120 * 60 * 60 * 1000,     // 5 días para tasas oficiales de países con control de cambio
-  referenceMaxAgeMs: 7 * 24 * 60 * 60 * 1000, // 7 días para chips oficiales (cubre fines de semana)
-
-  providerUrl: 'https://fxratesapi.com',
+  providerUrl: 'https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/',
   refreshMs: 120000,  // refresco automático (2 min, igual que la caché del backend)
   timeoutMs: 20000,   // tiempo máximo de espera por respuesta
   cacheMaxAge: 24 * 60 * 60 * 1000,
@@ -63,21 +21,10 @@ const CONFIG = {
   storageKeys: {
     theme: 'tasas-theme',
     favorites: 'tasas-favorites-v1',
-    cache: 'tasas-cache-v5',
-    previous: 'tasas-previous-v5'
+    cache: 'tasas-cache-official-v1',
+    previous: 'tasas-previous-official-v1'
   }
 };
-
-/** Fuentes oficiales por moneda (para enlaces y créditos). */
-const OFFICIAL_SOURCES = {};
-CONFIG.localApis.forEach(function (api) {
-  OFFICIAL_SOURCES[api.code] = {
-    name: api.source,
-    url: api.sourceUrl,
-    label: api.label || 'Oficial',
-    mode: api.mode
-  };
-});
 
 /* ============================================================================
    1. METADATOS DE MONEDAS
@@ -408,21 +355,17 @@ function currencyName(code) {
   return name;
 }
 
-const numberFormats = {};
-
 function fmtRate(value) {
   const number = Number(value);
   if (!isFinite(number)) return '—';
-  const abs = Math.abs(number);
-  const digits = abs >= 1000 ? 2 : abs >= 1 ? 4 : 6;
+  return new Intl.NumberFormat('es-ES', { maximumFractionDigits: 12 }).format(number);
+}
 
-  if (!numberFormats[digits]) {
-    numberFormats[digits] = new Intl.NumberFormat('es-ES', {
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits
-    });
-  }
-  return numberFormats[digits].format(number);
+function fmtSourceQuote(value) {
+  const match = String(value == null ? '' : value).trim().match(/^([+-]?)(\d+)(?:\.(\d+))?$/);
+  if (!match) return fmtRate(value);
+  const integer = match[2].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return match[1] + integer + (match[3] ? ',' + match[3] : '');
 }
 
 function fmtPct(value) {
@@ -458,22 +401,14 @@ function formatDateShort(value) {
   }).format(new Date(iso));
 }
 
-function timeAgo(value) {
+function formatSourceDate(value) {
   const iso = parseDateValue(value);
   if (!iso) return '—';
-
-  const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-  if (seconds < 5) return 'ahora mismo';
-  if (seconds < 60) return 'hace ' + seconds + ' s';
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return 'hace ' + minutes + ' min';
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return 'hace ' + hours + ' h';
-
-  const days = Math.floor(hours / 24);
-  return 'hace ' + days + ' d';
+  return new Intl.DateTimeFormat('es-ES', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date(iso));
 }
 
 function parseAmount(text) {
@@ -524,294 +459,44 @@ async function fetchJSON(url, timeoutMs) {
   }
 }
 
-/**
- * Pide las tasas al Web App de Apps Script y, si falla, a las APIs públicas.
- * @param {boolean} force  Fuerza la actualización en el backend.
- */
+/** Pide tasas verificadas en fuentes oficiales directas al backend. */
 async function getRates(force) {
-  if (CONFIG.appsScriptUrl) {
-    try {
-      const url = CONFIG.appsScriptUrl +
-        (CONFIG.appsScriptUrl.indexOf('?') === -1 ? '?' : '&') +
-        'action=rates' + (force ? '&force=1&_=' + Date.now() : '');
-
-      const payload = await fetchJSON(url);
-
-      if (!payload || payload.ok === false) {
-        throw new Error((payload && (payload.message || payload.error)) || 'El backend no devolvió tasas.');
-      }
-
-      return { payload: payload, mode: 'sheets' };
-    } catch (error) {
-      console.warn('[Tasas] Apps Script no disponible, usando respaldo directo:', error.message);
-      state.backendError = error.message;
-    }
+  if (!CONFIG.appsScriptUrl) {
+    throw new Error('Configura el Web App de Apps Script para consultar las fuentes oficiales.');
   }
 
-  const requests = [
-    fetchJSON(CONFIG.liveApi, 12000),
-    fetchJSON(CONFIG.dailyApi, 12000),
-    fetchJSON(CONFIG.directApi, 12000)
-  ].concat(
-    CONFIG.localApis.map(function (api) { return fetchJSON(api.url, 12000); })
-  );
+  const url = CONFIG.appsScriptUrl +
+    (CONFIG.appsScriptUrl.indexOf('?') === -1 ? '?' : '&') +
+    'action=rates' + (force ? '&force=1&_=' + Date.now() : '');
+  const payload = await fetchJSON(url);
 
-  const results = await Promise.allSettled(requests);
-  const global = mergeGlobalRates(results.slice(0, 3));
-
-  if (!global) {
-    throw new Error('No se pudo conectar con el backend ni con el proveedor de divisas.');
+  if (!payload || payload.ok === false) {
+    throw new Error((payload && (payload.message || payload.error)) || 'El backend no devolvió tasas oficiales.');
+  }
+  if (!payload.quotes || !payload.sources) {
+    throw new Error('El Web App está desactualizado. Publica una nueva versión de Code.gs y Sheets.gs.');
   }
 
-  return {
-    payload: buildDirectPayload(global, results.slice(3)),
-    mode: 'direct'
-  };
+  return { payload: payload, mode: 'sheets' };
 }
-
-/**
- * Combina los proveedores globales en orden de prioridad:
- * 1) mercado en vivo, 2) referencia diaria, 3) respaldo.
- * Si uno falla o no trae una moneda, se completa con el siguiente.
- */
-function mergeGlobalRates(results) {
-  const sources = [];
-
-  const fx = results[0] && results[0].status === 'fulfilled' ? results[0].value : null;
-  if (fx && fx.rates && typeof fx.rates === 'object') {
-    sources.push({
-      rates: fx.rates,
-      provider: 'fxratesapi.com',
-      providerUrl: 'https://fxratesapi.com',
-      updatedAt: fx.date || null
-    });
-  }
-
-  const daily = results[1] && results[1].status === 'fulfilled' ? results[1].value : null;
-  if (daily && daily.usd && typeof daily.usd === 'object') {
-    const rates = {};
-    Object.keys(daily.usd).forEach(function (code) {
-      rates[String(code).toUpperCase()] = daily.usd[code];
-    });
-    sources.push({
-      rates: rates,
-      provider: 'currency-api',
-      providerUrl: 'https://github.com/fawazahmed0/exchange-api',
-      updatedAt: daily.date || null
-    });
-  }
-
-  const fallback = results[2] && results[2].status === 'fulfilled' ? results[2].value : null;
-  if (fallback && fallback.rates && typeof fallback.rates === 'object') {
-    sources.push({
-      rates: fallback.rates,
-      provider: 'exchangerate-api.com',
-      providerUrl: 'https://www.exchangerate-api.com',
-      updatedAt: fallback.time_last_update_utc || null
-    });
-  }
-
-  if (!sources.length) return null;
-
-  const rates = {};
-  sources.forEach(function (source) {
-    Object.keys(source.rates).forEach(function (code) {
-      if (rates[code] != null) return;
-      const value = Number(source.rates[code]);
-      if (isFinite(value) && value > 0) rates[code] = value;
-    });
-  });
-
-  rates.USD = 1;
-  if (!rates.EUR) return null;
-
-  return {
-    rates: rates,
-    provider: sources[0].provider,
-    providerUrl: sources[0].providerUrl,
-    upstreamUpdatedAt: parseDateValue(sources[0].updatedAt)
-  };
-}
-
-function buildDirectPayload(global, localResults) {
-  const rates = Object.assign({}, global.rates);
-  const extras = {};
-  const localCodes = [];
-
-  CONFIG.localApis.forEach(function (api, index) {
-    const result = localResults[index];
-    if (!result || result.status !== 'fulfilled') return;
-
-    const parsed = parseLocalQuotes(api.type, result.value, api);
-    if (!parsed || !parsed.official || !(parsed.official.valor > 0)) return;
-
-    const quote = parsed.official;
-
-    if (api.mode === 'replace') {
-      if (!isFresh(quote.fecha, CONFIG.localMaxAgeMs)) return;
-      rates[api.code] = quote.valor;
-      localCodes.push(api.code);
-      if (parsed.extras.length) extras[api.code] = parsed.extras;
-      return;
-    }
-
-    // Referencia oficial (TRM, FIX, PTAX…): chip informativo.
-    // El precio grande sigue siendo el mercado en vivo para no mostrar
-    // una tasa oficial atrasada como si fuera la cotización actual.
-    if (!isFresh(quote.fecha, CONFIG.referenceMaxAgeMs)) return;
-    extras[api.code] = [{
-      id: String(api.label || 'oficial').toLowerCase(),
-      nombre: api.label || 'Oficial',
-      valor: quote.valor,
-      fecha: quote.fecha,
-      fuente: api.source
-    }];
-  });
-
-  return {
-    ok: true,
-    base: 'USD',
-    rates: rates,
-    extras: extras,
-    local: localCodes,
-    overrides: [],
-    provider: global.provider,
-    providerUrl: global.providerUrl,
-    upstreamUpdatedAt: global.upstreamUpdatedAt,
-    nextUpdateAt: null,
-    updatedAt: new Date().toISOString(),
-    origin: 'direct'
-  };
-}
-
-const LOCAL_ORDER = [
-  'oficial', 'paralelo', 'binance', 'blue', 'bolsa',
-  'contadoconliqui', 'cripto', 'mayorista', 'tarjeta'
-];
-
-/** Normaliza la respuesta de un proveedor local (misma lógica que el backend). */
-function parseLocalQuotes(type, payload, api) {
-  api = api || {};
-  const source = api.source || '';
-
-  if (type === 'dolares') {
-    if (!Array.isArray(payload) || !payload.length) return null;
-
-    const extras = payload
-      .filter(function (item) { return item && String(item.moneda || 'USD').toUpperCase() === 'USD'; })
-      .map(function (item) {
-        const value = Number(item.promedio) || Number(item.venta) || Number(item.compra);
-        return {
-          id: String(item.fuente || item.casa || '').toLowerCase(),
-          nombre: capitalize(item.nombre || item.fuente || item.casa || ''),
-          valor: isFinite(value) ? value : 0,
-          fecha: parseDateValue(item.fechaActualizacion),
-          fuente: source
-        };
-      })
-      .filter(function (item) { return item.valor > 0; })
-      .sort(function (a, b) { return LOCAL_ORDER.indexOf(a.id) - LOCAL_ORDER.indexOf(b.id); });
-
-    return {
-      extras: extras,
-      official: extras.filter(function (item) { return item.id === 'oficial'; })[0] || null
-    };
-  }
-
-  if (type === 'mindicador') {
-    const row = payload && Array.isArray(payload.serie) ? payload.serie[0] : null;
-    if (!row) return null;
-    const value = Number(row.valor);
-    if (!isFinite(value) || value <= 0) return null;
-    return {
-      extras: [],
-      official: {
-        id: String(api.label || 'oficial').toLowerCase(),
-        nombre: api.label || 'Oficial',
-        valor: value,
-        fecha: parseDateValue(row.fecha),
-        fuente: source
-      }
-    };
-  }
-
-  if (type === 'datos') {
-    const row = Array.isArray(payload) ? payload[0] : null;
-    if (!row) return null;
-    const value = Number(row.valor);
-    if (!isFinite(value) || value <= 0) return null;
-    return {
-      extras: [],
-      official: {
-        id: String(api.label || 'oficial').toLowerCase(),
-        nombre: api.label || 'Oficial',
-        valor: value,
-        fecha: parseDateValue(row.vigenciadesde || row.fecha),
-        fuente: source
-      }
-    };
-  }
-
-  if (!Array.isArray(payload) || !payload.length) return null;
-
-  const row = payload.filter(function (item) {
-    return item && String(item.moeda || item.moneda || '').toUpperCase() === 'USD';
-  })[0];
-
-  if (!row) return null;
-
-  const field = api.field;
-  const value = field && row[field] != null
-    ? Number(row[field])
-    : (Number(row.venta) || Number(row.venda) || Number(row.compra) ||
-      Number(row.ultimoCierre) || Number(row.fix));
-
-  if (!isFinite(value) || value <= 0) return null;
-
-  return {
-    extras: [],
-    official: {
-      id: String(api.label || 'oficial').toLowerCase(),
-      nombre: api.label || capitalize(row.nombre || 'Dólar'),
-      valor: value,
-      fecha: parseDateValue(row.fechaActualizacion || row.dataAtualizacao),
-      fuente: source
-    }
-  };
-}
-
-/** ¿El dato es suficientemente reciente para mostrarse? */
-function isFresh(value, maxAgeMs) {
-  const iso = parseDateValue(value);
-  if (!iso) return false;
-  const limit = maxAgeMs == null ? CONFIG.localMaxAgeMs : maxAgeMs;
-  return Date.now() - new Date(iso).getTime() <= limit;
-}
-
-/**
- * Compatibilidad: versiones anteriores agrupaban las variantes por país (VE, AR).
- * Ahora llegan por código de moneda; se aceptan ambos formatos.
- */
-const EXTRAS_ALIAS = { VE: 'VES', AR: 'ARS' };
 
 function normalizeExtras(raw) {
   const extras = {};
   if (!raw || typeof raw !== 'object') return extras;
 
   Object.keys(raw).forEach(function (key) {
-    const code = EXTRAS_ALIAS[key] || key;
+    const code = key;
     const list = Array.isArray(raw[key]) ? raw[key] : [];
 
     list.forEach(function (item) {
       if (!item || !isFinite(Number(item.valor)) || Number(item.valor) <= 0) return;
       if (!extras[code]) extras[code] = [];
-      const source = OFFICIAL_SOURCES[code];
       extras[code].push({
         id: String(item.id || item.nombre || '').toLowerCase(),
         nombre: capitalize(item.nombre || item.id || ''),
         valor: Number(item.valor),
         fecha: parseDateValue(item.fecha),
-        fuente: item.fuente || (source && source.name) || ''
+        fuente: item.fuente || ''
       });
     });
   });
@@ -822,24 +507,35 @@ function normalizeExtras(raw) {
 /** Valida y completa la respuesta del backend. */
 function normalize(payload, mode) {
   const rates = {};
+  const quotes = payload.quotes && typeof payload.quotes === 'object' ? payload.quotes : {};
+  const sources = payload.sources && typeof payload.sources === 'object' ? payload.sources : {};
   Object.keys(payload.rates || {}).forEach(function (code) {
     const value = Number(payload.rates[code]);
-    if (isFinite(value) && value > 0) rates[code] = value;
+    const quote = quotes[code];
+    const source = sources[code];
+    if (isFinite(value) && value > 0 &&
+        quote && (quote.base === 'USD' || quote.base === 'EUR') &&
+        Number(quote.value) > 0 && parseDateValue(quote.date) &&
+        source && source.name && source.url) {
+      rates[code] = value;
+    }
   });
 
-  if (!rates.USD) rates.USD = 1;
   if (!rates.EUR) throw new Error('La respuesta no incluye la tasa del euro (EUR).');
+  if (rates.USD !== 1) throw new Error('La respuesta no incluye USD como base oficial.');
 
   return {
     ok: true,
     base: 'USD',
     rates: rates,
     extras: normalizeExtras(payload.extras),
+    quotes: quotes,
+    sources: sources,
     local: Array.isArray(payload.local)
       ? payload.local.map(function (code) { return String(code).toUpperCase(); })
       : [],
-    overrides: Array.isArray(payload.overrides) ? payload.overrides : [],
-    provider: payload.provider || 'exchangerate-api.com',
+    overrides: [],
+    provider: payload.provider || 'Bancos centrales y fuentes oficiales',
     providerUrl: payload.providerUrl || CONFIG.providerUrl,
     upstreamUpdatedAt: parseDateValue(payload.upstreamUpdatedAt),
     nextUpdateAt: parseDateValue(payload.nextUpdateAt),
@@ -903,21 +599,25 @@ function buildRows() {
   const rates = state.data.rates;
   const eurBase = rates.EUR;
   const extrasAll = state.data.extras || {};
+  const quotes = state.data.quotes || {};
+  const sources = state.data.sources || {};
 
-  // Solo monedas de países/territorios con bandera y nombre en español.
-  // Los proveedores en vivo también devuelven criptomonedas y metales
-  // (BTC, ORDI, XAU…), que no tienen país y no deben aparecer como tarjetas.
+  // Solo se muestran códigos publicados por una de las fuentes oficiales.
   const rows = Object.keys(rates).filter(function (code) {
     return !!CURRENCIES[code];
   }).map(function (code) {
     const meta = CURRENCIES[code];
     const usd = rates[code];
     const extras = extrasAll[code] || [];
+    const quote = quotes[code] || {};
+    const source = sources[code] || null;
 
     return {
       code: code,
       usd: usd,
       eur: usd / eurBase,
+      usdDisplay: quote.base === 'USD' ? fmtSourceQuote(quote.value) : fmtRate(usd),
+      eurDisplay: quote.base === 'EUR' ? fmtSourceQuote(quote.value) : fmtRate(usd / eurBase),
       country: meta ? meta.country : currencyName(code),
       iso: meta ? meta.iso : 'un',
       region: meta ? meta.region : 'otros',
@@ -925,8 +625,9 @@ function buildRows() {
       known: !!meta,
       extras: extras,
       local: (state.data.local || []).indexOf(code) !== -1,
-      official: !!OFFICIAL_SOURCES[code],
-      officialSource: OFFICIAL_SOURCES[code] || null,
+      official: !!source,
+      officialSource: source,
+      sourceQuote: quote,
       delta: state.deltas[code]
     };
   });
@@ -1044,7 +745,7 @@ function extraChip(extra) {
 }
 
 function cardHTML(row, index) {
-  const usdText = fmtRate(row.usd);
+  const usdText = row.usdDisplay;
   const longClass = usdText.length > 11 ? ' long' : '';
   const flag = 'https://flagcdn.com/w80/' + row.iso + '.png';
   const flag2x = 'https://flagcdn.com/w160/' + row.iso + '.png';
@@ -1074,7 +775,7 @@ function cardHTML(row, index) {
       (localSource ? ' (' + escapeHTML(localSource) + ')' : '') + '"></i>'
     : '';
   const aria = row.country + ': 1 dólar equivale a ' + usdText + ' ' + row.code +
-    '. Un euro equivale a ' + fmtRate(row.eur) + ' ' + row.code + '.';
+    '. Un euro equivale a ' + row.eurDisplay + ' ' + row.code + '.';
 
   return '<article class="card" data-code="' + row.code + '" tabindex="0" role="button" aria-label="' + escapeHTML(aria) + '" style="--i:' + Math.min(index, 14) + '">' +
     '<div class="card-top">' +
@@ -1096,7 +797,7 @@ function cardHTML(row, index) {
     '</div>' +
     '<div class="sub-row">' +
       '<span class="sub-label">EUR</span>' +
-      '<span class="sub-value">' + fmtRate(row.eur) + '</span>' +
+      '<span class="sub-value">' + row.eurDisplay + '</span>' +
       deltaHTML +
     '</div>' +
     extrasHTML +
@@ -1131,31 +832,18 @@ function renderMeta() {
   $('#currencyCount').textContent = Object.keys(data.rates).filter(function (code) {
     return !!CURRENCIES[code];
   }).length;
-  $('#nextText').textContent = data.nextUpdateAt ? formatDateTime(data.nextUpdateAt) : '—';
+  $('#nextText').textContent = 'días hábiles';
   $('#year').textContent = new Date().getFullYear();
 
   const link = $('#providerLink');
   link.textContent = data.provider;
   link.href = data.providerUrl || CONFIG.providerUrl;
 
-  const modePill = $('#modePill');
-  modePill.hidden = data.mode !== 'direct';
-  modePill.textContent = 'Modo respaldo · sin Google Sheets';
-
   const sourceNote = $('#sourceNote');
   sourceNote.dataset.mode = data.mode;
-  sourceNote.textContent = data.mode === 'sheets'
-    ? 'Guardado en Google Sheets'
-    : 'Respaldo directo (sin Sheets)';
-
-  const note = $('#manualNote');
-  if (data.overrides && data.overrides.length) {
-    note.hidden = false;
-    note.textContent = 'Tasas manuales activas para: ' + data.overrides.join(', ') +
-      '. Se editan en la hoja Config (TASAS_MANUALES).';
-  } else {
-    note.hidden = true;
-  }
+  sourceNote.textContent = data.degraded
+    ? 'Copia guardada de referencias oficiales'
+    : 'Referencias oficiales guardadas en Google Sheets';
 
   updateClock();
 }
@@ -1163,7 +851,7 @@ function renderMeta() {
 function updateClock() {
   if (!state.data) return;
   const updated = $('#updatedText');
-  if (updated) updated.textContent = 'Actualizado ' + timeAgo(state.data.updatedAt);
+  if (updated) updated.textContent = 'Fuente del ' + formatSourceDate(state.data.updatedAt);
   updateStatus();
 }
 
@@ -1184,12 +872,12 @@ function updateStatus() {
     return;
   }
 
-  const ago = timeAgo(state.data.updatedAt);
+  const sourceDate = formatSourceDate(state.data.updatedAt);
   let text;
 
-  if (state.connection === 'cache') text = 'Caché · ' + ago;
-  else if (state.connection === 'warn') text = 'Copia guardada · ' + ago;
-  else text = 'En vivo · ' + ago;
+  if (state.connection === 'cache') text = 'Caché · fuente del ' + sourceDate;
+  else if (state.connection === 'warn') text = 'Copia guardada · fuente del ' + sourceDate;
+  else text = 'Referencia oficial · ' + sourceDate;
 
   if (state.loading) text += ' · actualizando';
   label.textContent = text;
@@ -1283,11 +971,6 @@ async function refresh(force) {
 
     if (data.mode === 'sheets' && data.degraded) {
       toast(data.warning || 'Mostrando la última copia guardada en Google Sheets.', 'warn', 6500);
-    }
-
-    if (data.mode === 'direct' && !state.backendNotified) {
-      state.backendNotified = true;
-      toast('El Web App no devolvió las tasas. Mostrando respaldo directo; revisa el backend.', 'warn', 6500);
     }
 
     if (data.sheetWarning) console.warn('[Tasas]', data.sheetWarning);
@@ -1546,8 +1229,8 @@ function openModal(code) {
 
   $('#mTitle').textContent = row.country;
   $('#mSub').textContent = row.known ? row.code + ' · ' + row.name : row.code;
-  $('#mUsd').textContent = fmtRate(row.usd) + ' ' + row.code;
-  $('#mEur').textContent = fmtRate(row.eur) + ' ' + row.code;
+  $('#mUsd').textContent = row.usdDisplay + ' ' + row.code;
+  $('#mEur').textContent = row.eurDisplay + ' ' + row.code;
 
   const flag = $('#mFlag');
   flag.hidden = false;
@@ -1573,9 +1256,9 @@ function openModal(code) {
   }
 
   const source = row.officialSource;
-  const providerName = row.local ? 'tasa oficial local' : state.data.provider;
+  const providerName = source ? source.name : state.data.provider;
   let sourceHTML = 'Fuente: ' + escapeHTML(providerName) +
-    ' · ' + escapeHTML(formatDateTime(state.data.updatedAt));
+    ' · ' + escapeHTML(formatSourceDate(row.sourceQuote.date));
   if (source) {
     sourceHTML += ' · <a href="' + escapeHTML(source.url) +
       '" target="_blank" rel="noopener">' + escapeHTML(source.name) + '</a>';
@@ -1815,8 +1498,8 @@ function copyRate() {
   const row = findRow(state.chart.code);
   if (!row || !state.data) return;
 
-  const text = '1 USD = ' + fmtRate(row.usd) + ' ' + row.code + '\n' +
-    '1 EUR = ' + fmtRate(row.eur) + ' ' + row.code + '\n' +
+  const text = '1 USD = ' + row.usdDisplay + ' ' + row.code + '\n' +
+    '1 EUR = ' + row.eurDisplay + ' ' + row.code + '\n' +
     'Tasas Global · ' + formatDateTime(state.data.updatedAt);
 
   copyText(text)

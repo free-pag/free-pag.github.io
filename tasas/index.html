@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#060a13">
-  <meta name="description" content="Tasas de cambio del dólar y el euro para todos los países: pesos, bolívares, soles y casi 150 monedas. Mercado en vivo y tasas oficiales del país (TRM, FIX, PTAX).">
+  <meta name="description" content="Referencias oficiales de cambio para las monedas publicadas por el Banco Central Europeo, Bank of Canada, Banco Central do Brasil y datos.gov.co.">
   <meta name="color-scheme" content="dark light">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Tasas Global">
-  <title>Tasas Global · Dólar y Euro en tiempo real</title>
+  <title>Tasas Global · Referencias oficiales de cambio</title>
 
   <script>
     /* Tema antes del primer pintado (evita el destello blanco). */
@@ -49,7 +49,7 @@
         </span>
         <span class="brand-text">
           <strong>Tasas Global</strong>
-          <small>Dólar y euro · mercado de divisas</small>
+          <small>Dólar y euro · referencias oficiales</small>
         </span>
       </a>
 
@@ -83,16 +83,15 @@
     <!-- ================= HERO ================= -->
     <section class="hero">
       <div class="hero-copy">
-        <span class="eyebrow"><span class="live-dot" aria-hidden="true"></span> Mercado de divisas global</span>
+        <span class="eyebrow"><span class="live-dot" aria-hidden="true"></span> Referencias oficiales de cambio</span>
         <h1>El dólar y el euro,<br><span class="grad">país por país.</span></h1>
         <p class="lede">
-          Tasas de <strong id="currencyCount">149</strong> monedas del mundo: pesos, bolívares,
-          soles, reales y más. Mercado en vivo y, donde existe, la tasa oficial del país
-          (TRM, FIX, PTAX, Observado).
+          Cotizaciones de <strong id="currencyCount">31</strong> monedas publicadas por bancos centrales
+          y fuentes gubernamentales. Las cifras de origen conservan los decimales que entrega cada fuente.
         </p>
 
         <div class="hero-meta">
-          <span class="pill" title="Hora de la última actualización">
+          <span class="pill" title="Fecha de referencia más reciente">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
               <circle cx="12" cy="12" r="8.5"></circle>
               <path d="M12 7.5V12l3 1.8"></path>
@@ -105,19 +104,17 @@
               <path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"></path>
               <path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"></path>
             </svg>
-            <a id="providerLink" href="https://www.exchangerate-api.com" target="_blank" rel="noopener">exchangerate-api</a>
+            <a id="providerLink" href="https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/" target="_blank" rel="noopener">Banco Central Europeo</a>
           </span>
-          <span class="pill" title="Próxima actualización del proveedor">
+          <span class="pill" title="Frecuencia habitual de publicación de las fuentes">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
               <path d="M12 3v3M12 18v3M3 12h3M18 12h3"></path>
               <circle cx="12" cy="12" r="4.2"></circle>
             </svg>
-            Próxima: <span id="nextText">—</span>
+            Publicación: <span id="nextText">días hábiles</span>
           </span>
-          <span class="pill pill-mode" id="modePill" hidden></span>
         </div>
 
-        <p class="manual-note" id="manualNote" hidden></p>
       </div>
 
       <!-- ================= CONVERSOR ================= -->
@@ -125,9 +122,9 @@
         <div class="converter-head">
           <div>
             <h2>Conversor</h2>
-            <p>Calcula al instante con la tasa actual</p>
+            <p>Calcula con referencias oficiales disponibles</p>
           </div>
-          <span class="converter-badge">en vivo</span>
+          <span class="converter-badge">oficial</span>
         </div>
 
         <label class="field">
@@ -194,8 +191,8 @@
 
     <div class="summary">
       <span id="countLabel">Cargando monedas…</span>
-      <span class="legend"><i class="rate-local" aria-hidden="true"></i> Precio local oficial · chips TRM/FIX/PTAX = tasa oficial</span>
-      <span class="summary-note" id="sourceNote">Conectando con Google Sheets…</span>
+        <span class="legend"><i class="rate-local" aria-hidden="true"></i> Cotización USD directa (CAD, BRL, COP) · las demás se derivan de referencias EUR</span>
+        <span class="summary-note" id="sourceNote">Conectando con fuentes oficiales…</span>
     </div>
 
     <!-- ================= TARJETAS ================= -->
@@ -228,9 +225,10 @@
       </div>
 
       <div class="footer-links">
-        <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">exchangerate-api.com</a>
-        <a href="https://dolarapi.com" target="_blank" rel="noopener">dolarapi.com</a>
-        <a href="https://ve.dolarapi.com" target="_blank" rel="noopener">ve.dolarapi.com</a>
+        <a href="https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/" target="_blank" rel="noopener">Banco Central Europeo</a>
+        <a href="https://www.bankofcanada.ca/rates/exchange/daily-exchange-rates/" target="_blank" rel="noopener">Bank of Canada</a>
+        <a href="https://www.bcb.gov.br/estabilidadefinanceira/historicocotacoes" target="_blank" rel="noopener">Banco Central do Brasil</a>
+        <a href="https://www.datos.gov.co/" target="_blank" rel="noopener">datos.gov.co · TRM</a>
       </div>
     </div>
 
@@ -239,7 +237,7 @@
         Los valores son informativos y pueden variar según el mercado. No constituyen asesoría financiera
         ni una oferta de compra o venta.
       </p>
-      <p>© <span id="year"></span> Tasas Global · Mercado en vivo y tasas oficiales por país</p>
+      <p>© <span id="year"></span> Tasas Global · Referencias oficiales de cambio</p>
     </div>
   </footer>
 
@@ -283,7 +281,7 @@
       <div class="chart-head">
         <div>
           <h3>Historial</h3>
-          <p>Historial de la tasa de mercado (requiere backend)</p>
+          <p>Historial de referencias oficiales (requiere backend)</p>
         </div>
         <div class="periods" id="periods" role="group" aria-label="Periodo del historial">
           <button type="button" data-days="1">24 h</button>

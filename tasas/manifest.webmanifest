@@ -1,7 +1,7 @@
 {
-  "name": "Tasas Global · Dólar y Euro",
+  "name": "Tasas Global · Referencias oficiales",
   "short_name": "Tasas Global",
-  "description": "Tasas del dólar y el euro en casi 150 monedas, con mercado en vivo y tasas oficiales por país.",
+  "description": "Referencias oficiales de cambio publicadas por bancos centrales y fuentes gubernamentales.",
   "lang": "es",
   "dir": "ltr",
   "start_url": "./index.html",

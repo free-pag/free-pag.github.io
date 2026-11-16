@@ -4,7 +4,8 @@
    Las tasas NO se cachean aquí: siempre se piden frescas al Web App.
    ========================================================================== */
 
-const CACHE_NAME = 'tasas-global-v1';
+const CACHE_NAME = 'tasas-global-official-v1';
+const CACHE_PREFIX = 'tasas-global-';
 
 const SHELL = [
   './',
@@ -28,7 +29,9 @@ self.addEventListener('activate', function (event) {
     caches.keys()
       .then(function (keys) {
         return Promise.all(keys.map(function (key) {
-          return key === CACHE_NAME ? null : caches.delete(key);
+          return key.indexOf(CACHE_PREFIX) === 0 && key !== CACHE_NAME
+            ? caches.delete(key)
+            : null;
         }));
       })
       .then(function () { return self.clients.claim(); })
